@@ -1,0 +1,16 @@
+version: '3.3'
+
+services:
+  postgres_7db:
+    image: postgres:12.9
+    environment:
+      POSTGRES_DB: book
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    volumes:
+      - postgres_7db:/var/lib/postgresql/data
+    ports:
+      - "5400:5432"
+
+volumes:
+  postgres_7db:
