@@ -1,0 +1,280 @@
+```bash
+# general commands
+mongosh --host <host> --port <port> -u <username> -p <password> --authenticationDatabase <auth_db>
+
+# Im using mongosh, there are different clients for mongo, inside container it was installed
+mongosh -u userName -p passWord
+
+# to use a different db
+use dbName
+
+# to list dbs
+show dbs
+
+# to list collections
+show collections
+
+# to get help
+help
+
+# to show users
+show users
+
+# to show roles
+show roles
+```
+
+# Crud
+
+### create
+```js
+// to insert you can use db.collectionName.insertOne or insertMany or bulkWrite. it will create the collection if its not there
+db.towns.insertOne({  
+name: "New York",  
+population: 22200000,  
+lastCensus: ISODate("2016-07-01"),  
+famousFor: [ "the MOMA", "food", "Derek Jeter" ], mayor : {
+	name : "Bill de Blasio",
+	party : "D" }
+})
+
+// to list content of a collection
+db.towns.find()
+
+// mongo tounge is js
+db.help()
+db.towns.help()
+```
+
+- Tip: The ObjectId is always 12 bytes, composed of a timestamp, client machine ID, client process ID, and a 3-byte incremented counter. What’s great about this autonumbering scheme is that each process on every machine can handle its own ID generation without colliding with other mongod instances.
+![Object-ID](ObjectId.png)
+
+```js
+// helper commands
+typeof db
+// object
+
+typeof db.towns
+// object
+
+typeof db.towns.insertOne
+// function
+
+// to view source code of a function
+db.towns.insertOne
+
+// you can add js functions
+function insertCity(  
+name, population, lastCensus, famousFor, mayorInfo
+
+){ db.towns.insert({
+
+    name: name,
+    population: population,
+    lastCensus: ISODate(lastCensus),
+    famousFor: famousFor,
+    mayor : mayorInfo
+
+}); }
+
+// now use the function
+insertCity("Punxsutawney", 6200, '2016-01-31', ["Punxsutawney Phil"], { name : "Richard Alexander" })
+
+// a nice UI for mongo visualising data and monitor is Robo 3T
+```
+
+### read
+```js
+// random queries
+
+// to find a specific value
+db.towns.find({ "_id" : ObjectId("59094288afbc9350ada6b807") })
+
+// to get only the name and id of a town
+db.towns.find({ _id : ObjectId("66966600bc11f78282f3f550") }, { name : 1 })
+
+// to get all fields except name
+db.towns.find({ _id : ObjectId("59094288afbc9350ada6b807") }, { name : 0 })
+
+// To find all towns that begin with the letter P and have a population less than 10,000, you can use a Perl-compatible regular expression (PCRE)2 and a range operator.
+db.towns.find(  
+{ name : /^P/, population : { $lt : 10000 } }, { _id: 0, name : 1, population : 1 })
+
+// Tip: Conditional operators in Mongo follow the format of field : { $op : value }, where $op is an operation like $ne (not equal to) or $gt (greater than)
+
+// you can define values and use later
+var population_range = { $lt: 1000000,  
+$gt: 10000
+}
+
+// how to use variables
+db.towns.find(
+{ name : /^P/, population : population_range },
+{ name: 1 })
+
+// you can also query date range
+db.towns.find(  
+{ lastCensus : { $gte : ISODate('2016-06-01') } }, { _id : 0, name: 1 })
+
+// query array values, it checks if food exist in the array
+db.towns.find(  
+{ famousFor : 'food' },  
+{ _id : 0, name : 1, famousFor : 1 })
+
+// to query array with partial values
+db.towns.find(  
+	{ famousFor : /moma/ },  
+	{ _id : 0, name : 1, famousFor : 1 }
+)
+
+// to query all matchings inside of array
+db.towns.find(  
+	{ famousFor : { $all : ['food', 'beer'] } }, { _id : 0, name:1, famousFor:1 }
+)
+
+// to query lack of matching values
+db.towns.find(  
+{ famousFor : { $nin : ['food', 'beer'] } }, { _id : 0, name : 1, famousFor : 1 }
+)
+
+// real power of mongo! dig down into a document! to query where mayor->party is 'D'
+db.towns.find(  
+{ 'mayor.party' : 'D' },  
+{ _id : 0, name : 1, mayor : 1 }
+)
+
+// to query those who dont have a party
+db.towns.find(  
+{ 'mayor.party' : { $exists : false } }, { _id : 0, name : 1, mayor : 1 }
+)
+```
+### some useful conditions
+![conditions](conditions.png)
+
+### move on to another collection
+```js
+// override the auto generated key!
+db.countries.insert({ _id : "us",  
+name : "United States", exports : {
+foods : [  
+{ name : "bacon", tasty : true }, { name : "burgers" }
+] }
+})
+
+db.countries.insert({
+_id : "ca",  
+name : "Canada", exports : {
+foods : [  
+{ name : "bacon", tasty : false }, { name : "syrup", tasty : true }
+] }
+})
+
+db.countries.insert({ _id : "mx",  
+name : "Mexico", exports : {
+foods : [{  
+name : "salsa", tasty : true, condiment : true
+}] }
+})
+
+
+// to get count of a collection
+db.countries.countDocuments()
+
+// find a country that not only exports bacon but exports tasty bacon. we need to use $elemMatch
+// but this is wrong because it returns all matching food bacon, and exist a food tasty true !
+db.countries.find(  
+{ 'exports.foods.name' : 'bacon', 'exports.foods.tasty' : true }, { _id : 0, name : 1 })
+
+// the right answer for above query is
+db.countries.find({
+'exports.foods' : { $elemMatch : {
+name : 'bacon',
+tasty : true }
+} },
+  { _id : 0, name : 1 }
+)
+
+
+// to find any country that exports a tasty food that also has a condiment label
+db.countries.find(
+  {
+'exports.foods' : { $elemMatch : {
+tasty : true,
+condiment : { $exists : true } }
+} },
+  { _id : 0, name : 1 }
+)
+
+// so far everything we query were using AND operations, if you want to use OR
+db.countries.find({
+	$or : [  
+			{ _id : "mx" },  
+			{ name : "United States" }
+		]},
+	{ _id:1 }
+)
+
+```
+
+### update
+```js
+// this is how to update in mongo. update(criteria, operation) but this update is deprecated so use updateOne or updateMany instead
+// example
+db.towns.update(  
+{ _id : ObjectId("4d0ada87bb30773266f39fe5") }, { $set : { "state" : "OR" } }
+);
+
+// this returns error!!! MongoInvalidArgumentError: Update document requires atomic operators.
+db.towns.update(  
+{ _id : ObjectId("4d0ada87bb30773266f39fe5") }, { state : "OR" }
+);
+
+
+// another operator is $inc to incerement
+db.towns.update( { _id: ObjectId("66966607bc11f78282f3f551") }, { $inc: { population: 1000 } } )
+
+
+
+```
+
+### some useful directives
+![commands](commands.png)
+
+### joins?
+```js
+// mongo isn't built for joins because of its distributed nature
+// but you can still do it like this { $ref : "collection_name", $id : "reference_id" }
+
+// lets update a town to reference a country
+db.towns.update(  
+{ _id : ObjectId("59094292afbc9350ada6b808") },  
+{ $set : { country: { $ref: "countries", $id: "us" } } }
+)
+// result: country: DBRef('countries', 'us')
+
+// in mongosh version 2.2.10 and mongo version 7.0.12, some commands in the book didnt work. to get values from DBRef use dbref.oid and dbref.namespace and dbref.db
+var portland = db.towns.findOne(  
+{ _id : ObjectId("59094292afbc9350ada6b808") }
+)
+portland.country.oid
+
+// to find the refrenced country
+db.countries.findOne({ _id: portland.country.oid })
+
+// more dynamic way of retrieving the refrenced object
+var portlandCountryRef = portland.country.namespace;
+db[portlandCountryRef].findOne({ _id: portland.country.oid })
+```
+### delete
+```js
+// use .remove() to delete a document. its deprecated so better to use deleteOne, deleteMany, findOneAndDelete, or bulkWrite.
+var badBacon = { 'exports.foods' : {
+		$elemMatch : { name : 'bacon', tasty : false}
+	}
+}
+db.countries.find(badBacon)
+
+db.countries.deleteOne(badBacon)
+db.countries.count()
+
+```
