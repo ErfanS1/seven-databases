@@ -3,12 +3,15 @@ version: '3.3'
 services:
   mongo_7db:
     image: mongo:7.0.12
+    container_name: mongo-7db
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: 123
     ports:
       - '27017:27017'
+    volumes:
+      - ~/mongo-7db-data/:/data/db
 
   mongo_express_7db:
     image: mongo-express
