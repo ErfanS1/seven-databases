@@ -278,3 +278,74 @@ db.countries.deleteOne(badBacon)
 db.countries.count()
 
 ```
+
+### reading with code
+```js
+// book says you can pass function inside find, but its wrong and you cant!
+db.towns.find(function() {  
+	return this.population > 6000 && this.population < 600000;
+})
+// MongoInvalidArgumentError: Query filter must be a plain object or ObjectId
+
+db.towns.find("this.population > 6000 && this.population < 600000")
+// MongoInvalidArgumentError: Query filter must be a plain object or ObjectId
+
+// but you could do this with $where
+db.towns.find({ $where: "this.population > 6000 && this.population < 600000"})
+
+// even more complex where
+db.towns.find({ $where: "this.population > 6000 && this.population < 600000", famousFor: /Phil/
+})
+
+// Tip: mongo would fail on this query if there is only one document without population, so becareful using custom js functions. in general avoid them in production!
+```
+
+### dump and mount
+```bash
+# I didn't use a volume at first so I need to get backup of its data
+# inside container you can use these commands
+mongodump -u userName -p pass --out /backup # some address
+
+# from outside of container
+docker cp containerName:/backup ~/data/
+
+# to mount ? lets say we use docker compose down then up
+docker cp ~/data/ containerName:/backup
+
+# go inside it and use mongorestore!
+mongorestore -u userName -p pass /backup
+```
+
+### homework
+```js
+// Find 4.pymongo 
+
+// Do
+// 1
+db.tmp.insertOne({"hello": "world"})
+db.tmp.findOne( {"hello": "world"}, {"_id": 0})
+
+// 2
+db.towns.findOne( {"name": {$regex: /new/i }} )
+
+// 3
+db.towns.find(
+	{"name": {$regex: /e/}, $or: [{"famousFor":'beer'}, {"famousFor":'food'}]} 
+)
+
+// 4
+use blogger
+
+db.articles.insertOne( {"author name": "Erf", "email": "mre.soltanloo@gmail.com", "creation date": ISODate("2024-07-18"), "text": "How to Mongo"} )
+
+// 5
+db.articles.update({'author name': 'Erf'}, {$set: {"comments": [{'text': 'best book ever!', 'author': 'mr_beast'}]}} )
+
+// 6
+// day1-h6.js
+print("Running script...");  
+print(db.towns.find( {'name': {$regex: /port/i}} ))  
+print("End !!");
+
+docker exec -it mongo-7db mongosh -u root -p 123 --authenticationDatabase admin book day1-h6.js
+```
