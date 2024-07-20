@@ -349,3 +349,89 @@ print("End !!");
 
 docker exec -it mongo-7db mongosh -u root -p 123 --authenticationDatabase admin book day1-h6.js
 ```
+
+## Day 2
+
+### indexes
+```js
+// add populatePhones function
+populatePhones = function (area, start, stop) {  
+    for (var i = start; i < stop; i++) {  
+        var country = 1 + ((Math.random() * 8) << 0);  
+        var num = (country * 1e10) + (area * 1e7) + i;  
+        var fullNumber = "+" + country + " " + area + "-" + i;  
+        db.phones.insert({  
+            _id: num,  
+            components: {  
+                country: country,  
+                area: area,  
+                prefix: (i * 1e-4) << 0,  
+                number: i  
+            },  
+            display: fullNumber  
+        });  
+        print("Inserted number " + fullNumber);  
+    }  
+    print("Done!");  
+}
+
+populatePhones(800, 5550000, 5650000) // This could take a minute
+
+// mongo automatically create index on _id
+db.phones.find().limit(10)
+
+// to get all collections: db.getCollectionNames
+db.getCollectionNames()
+
+// to get all indexes of db
+db.getCollectionNames().forEach(function(collection) { print("Indexes for the " + collection + " collection:"); printjson(db[collection].getIndexes()); });
+
+// to get explain of a query add .explain("executionStats").executionStats to query
+db.phones.find({display: "+1 800-5650001"}). explain("executionStats").executionStats
+// executionTimeMillis: 44, totalDocsExamined: 100000
+
+// to add index, use ensureIndex(fields, option)
+db.phones.ensureIndex( { display : 1 }, { unique : true, dropDups : true } )
+
+// if you run the query again you see docsExamined: 0!
+
+// Tip: explain is useful in testing, but you need system profiler for production.
+// to set profiler
+db.setProfilingLevel(2)
+// level 1 is for storing only slow queries more than 100ms
+// level 2 stores every query
+
+// you can see stored queries in db.system.profile
+db.system.profile.find()
+
+// to get first query stats
+db.system.profile.find().limit(1).toArray()[0].execStats
+
+// you can also create index on nested values
+// in production, you should always build indexes in the background using the { background : 1 } option.
+db.phones.ensureIndex({ "components.area": 1 }, { background : 1 })
+```
+
+### Aggregated Queries
+```js
+// count
+db.phones.count({'components.number': { $gt : 5599999 } })
+
+// 
+db.phones.distinct('components.number', {'components.number': { $lt : 5550005 } })
+
+
+// lol good old days?
+load('mongoCities100000.js')
+// FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+
+// get avg population
+db.cities.aggregate([ { $match: { 'timezone': { $eq: 'Asia/Dubai' } } }, { $group: { _id: 'averagePopulation', avgPop: { $avg: '$population' } } }] )
+
+// get population of cities in some region, sorted
+db.cities.aggregate([ { $match: { 'timezone': { $eq: 'Asia/Dubai' } } },
+{ $sort: { population: -1 } }, { $project: { _id: 0, name: 1, population: 1 } } ])
+
+// drop a collection
+db.cities.drop()
+```
