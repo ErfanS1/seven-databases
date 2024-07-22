@@ -435,3 +435,142 @@ db.cities.aggregate([ { $match: { 'timezone': { $eq: 'Asia/Dubai' } } },
 // drop a collection
 db.cities.drop()
 ```
+
+### server side commands
+```js
+// In addition to evaluating JavaScript functions, there are several pre-built commands in Mongo. you need to be in admin to run most of them.
+use admin
+
+// to output all access details(running queries, locks, etc) of all collections of the server
+db.runCommand('top')
+
+// to list commands of a db for example admin or book
+db.listCommands()
+
+// you can use all previous commands like this, the thing is db.phones.find() is a wrapper for this. but its slightly different when you run it like this, it returns a cursor!
+db.runCommand({ "find" : "phones" })
+
+// book says if you want to see the wrapper write
+db.phones.find 
+// this didnt work for me a better version is
+db.phones.find.toString()
+// but its not good enough. the real codes are written in c++ so
+
+// THIS IS DEPRECATED
+// Any JavaScript function can be stored in a special collection named system.js. This is just a normal collection; you save the function by setting the name as the _id and a function object as the value
+db.system.js.save({_id: 'getLast', value: function(collection) 
+ { return collection.find({}).sort({'_id':1}).limit(1)[0]; } })
+ 
+// Now you can use that function by loading it into the current namespace: 
+use book
+db.loadServerScripts()
+getLast(db.phones).display 
+// +1 800-5550010
+
+// HERE IS HOW YOU CAN DO THE SAME
+db.system.js.insertOne({ _id: "getLast", value: function(collectionName) { return db[collectionName].find({}).sort({ '_id': 1 }).limit(1).toArray()[0]; } });
+
+// but to use it with db.loadServerScripts(), this is also deprecated
+```
+
+### map + reduce + finalize(optional)
+```js
+// write a function to get distinct values of a number: [1132900] => [0,1,2,3,9]
+distinctDigits = function (phone) {  
+    var number = phone.components.number + '',  
+        seen = [],  
+        result = [],  
+        i = number.length;  
+    while (i--) {  
+        seen[+number[i]] = 1;  
+    }  
+    for (var i = 0; i < 10; i++) {  
+        if (seen[i]) {  
+            result[result.length] = i;  
+        }  
+    }  
+    return result;  
+}
+db.system.js.insertOne({_id: 'distinctDigits', value: distinctDigits})
+
+// a mapper that changes a phone into 3 component: distinctDigits, country-code, count=1
+map = function () {  
+    var digits = distinctDigits(this);  
+    emit({  
+        digits: digits,  
+        country: this.components.country  
+    }, {  
+        count: 1  
+    });  
+}
+
+// to reduce for key, values
+reduce = function (key, values) {  
+    var total = 0;  
+    for (var i = 0; i < values.length; i++) {  
+        
+        total += values[i].count;  
+    }  
+    return {count: total};  
+}
+
+// to run mapReduce over phones and write them into phones.report
+results = db.runCommand({ mapReduce: 'phones', 
+						 map: map, 
+						 reduce: reduce, 
+						 out: 'phones.report' })
+
+// to get result of mapReduce
+db.phones.report.find()
+//   [{ _id: { digits: [ 3, 5, 7 ], country: 6 }, value: { count: 17 } },
+//    { _id: { digits: [ 0, 2, 3, 5 ], country: 3 }, value: { count: 12 } }, ...]
+
+// phones.report is a materialized view that you can see in show tables;
+
+// in order to get all values and not iterator
+db.phones.mapReduce(map, reduce, {out: {"inline": 1}})
+// it has a limitation on size. As of Mongo 2.0, that limit is 16 MB.
+
+// what to do in a multi server scenario ? Reducers can have either mapped (emitted) results or other reducer results as inputs.
+reduce = function (key, values) {  
+    var total = 0;  
+    for (var i = 0; i < values.length; i++) {  
+        var data = values[i];  
+        if ('total' in data) {  
+            total += data.total;  
+        } else {  
+            total += data.count;  
+        }  
+    }  
+    return {total: total};  
+}
+
+// to do some final changes or renaming, calculation, etc. you can implement a finalize() function, which works the same way as the finalize function under group()
+```
+
+### Find + Homework
+```js
+// f1: define functions and load them, use alias, ...
+
+// Do:
+// h1: Implement a finalize method to output the count as the total
+ var finalize = function (key, value) { return { 'total': value.count }; }
+```
+
+```python
+# h2: python!
+import pymongo  
+  
+mongo_uri = 'mongodb://root:123@localhost:27017'  
+client = pymongo.MongoClient(mongo_uri)  
+  
+db = client.book  
+collection = db.users  
+collection.insert_many([{'name': 'john', 'lastname': 'wick'}, {'name': 'jack', 'lastname': 'reacher'}])  
+collection.create_index([("name", pymongo.DESCENDING)], background=True)  
+users = collection.find()  
+for user in users:  
+    print(user)  
+  
+print('indexes on users', db.users.index_information())
+```
