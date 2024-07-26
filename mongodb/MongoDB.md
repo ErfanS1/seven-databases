@@ -574,3 +574,96 @@ for user in users:
   
 print('indexes on users', db.users.index_information())
 ```
+
+## Day 3
+
+### ReplicaSet, Cluster
+```js
+// after docker compose up, connect to one of the containers and run this command
+rs.initiate({
+     _id: 'book',
+     members: [
+         {_id: 1, host: 'localhost:27017'},
+         {_id: 2, host: 'localhost:27017'},
+         {_id: 3, host: 'localhost:27017'}
+	]
+})
+
+// to verify if its okay
+rs.status()
+
+// to connect it from uri, use this mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=book
+
+// to check if its master, also its obvious in mongosh with primary and secondary keyword leftside of the command line.
+db.isMaster()
+
+// insert something in the master node, and then stop its container.
+// check if that thing is in other nodes ! which is true
+
+// try to insert in secondary node
+db.echo.insert({ say : 'is this thing on?' })
+// it returns error: MongoBulkWriteError[NotWritablePrimary]: not primary
+
+// book says you cant neither read or write from secondary nodes. but as I can see its wrong and you can read from them. there are different modes you can set. you can always use secondary nodes for read or always use primary.
+// modes: primary, primaryPreferred, secondary, secondaryPreferred, nearest
+
+// Tip: Because it’s a CP(CAP) system, Mongo always knows the most recent value; the client needn’t decide. Mongo’s concern is strong consistency on writes, and preventing a multimaster scenario is not a bad method for achieving it.
+
+// Tip: Use Odd number of replicas, with even numbers you should use arbiters(voter on tie)
+```
+
+### Sharding
+```bash
+# after running sharding docker compose to initialize config server replica set
+docker exec -it <configsvr1_container_id> mongo --port 27019
+rs.initiate(
+  {
+    _id: "configReplSet",
+    configsvr: true,
+    members: [
+      { _id: 0, host: "configsvr1:27019" },
+      { _id: 1, host: "configsvr2:27019" },
+      { _id: 2, host: "configsvr3:27019" }
+    ]
+  }
+)
+
+# to init shard1 replica set
+docker exec -it <shard1svr1_container_id> mongo --port 27018
+rs.initiate(
+  {
+    _id: "shard1",
+    members: [
+      { _id: 0, host: "shard1svr1:27018" },
+      { _id: 1, host: "shard1svr2:27018" },
+      { _id: 2, host: "shard1svr3:27018" }
+    ]
+  }
+)
+
+# to init shard2 replica set
+docker exec -it <shard2svr1_container_id> mongo --port 27018
+rs.initiate(
+  {
+    _id: "shard2",
+    members: [
+      { _id: 0, host: "shard2svr1:27018" },
+      { _id: 1, host: "shard2svr2:27018" },
+      { _id: 2, host: "shard2svr3:27018" }
+    ]
+  }
+)
+
+# Connect to the mongos router and add the shards
+docker exec -it <mongos_container_id> mongo --port 27017
+sh.addShard("shard1/shard1svr1:27018,shard1svr2:27018,shard1svr3:27018")
+sh.addShard("shard2/shard2svr1:27018,shard2svr2:27018,shard2svr3:27018")
+
+# still inside mongos, use these commands
+use admin
+db.runCommand({ enablesharding : "test" })
+db.runCommand({ shardcollection : "test.cities", key : {name : 1} })
+
+# copy mongoCities file into mongos container then run
+mongo mongoCities100000.js
+```
