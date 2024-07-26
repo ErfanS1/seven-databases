@@ -1,0 +1,44 @@
+version: '3.3'
+
+services:
+  mongo1:
+    image: mongo:7.0.12
+    container_name: mongo1_7db
+    ports:
+      - '27018:27017'
+    volumes:
+      - mongo1_db:/data/db
+    networks:
+      - mongo-cluster
+    command: [ "mongod", "--replSet", "book" ]
+
+  mongo2:
+    image: mongo:7.0.12
+    container_name: mongo2_7db
+    ports:
+      - '27019:27017'
+    volumes:
+      - mongo2_db:/data/db
+    networks:
+      - mongo-cluster
+    command: [ "mongod", "--replSet", "book" ]
+
+  mongo3:
+    image: mongo:7.0.12
+    container_name: mongo3_7db
+    ports:
+      - '27020:27017'
+    volumes:
+      - mongo3_db:/data/db
+    networks:
+      - mongo-cluster
+    command: ["mongod", "--replSet", "book"]
+
+networks:
+  mongo-cluster:
+    driver: bridge
+
+volumes:
+  mongo1_db:
+  mongo2_db:
+  mongo3_db:
