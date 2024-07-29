@@ -667,3 +667,96 @@ db.runCommand({ shardcollection : "test.cities", key : {name : 1} })
 # copy mongoCities file into mongos container then run
 mongo mongoCities100000.js
 ```
+
+### GeoSpatial Queries
+```js
+// create geohash index on location
+db.cities.ensureIndex({ location : "2d" })
+
+// find cities near a location sort by population desc. without index this aggregation does not work!
+db.cities.aggregate([  
+    {  
+        $geoNear: {  
+            near: [45.52, -122.67],  
+            distanceField: 'dist'  
+        }  
+    },  
+    {  
+        $sort: {  
+            population: -1  
+        }  
+    },  
+    {  
+        $project: {  
+            _id: 0,  
+            name: 1,  
+            population: 1,  
+            dist: 1  
+        }  
+    }  
+])
+```
+
+### GridFS
+```bash
+# One downside of a distributed system can be the lack of a single coherent filesystem.
+# Mongo comes bundled with a command-line tool for interacting with GridFS.
+
+# to list files in mongos
+mongofiles -h localhost:27017 list
+# its empty at first
+
+# add a file to all nodes
+echo "here's some file data" > just-some-data.txt
+mongofiles -h localhost:27017 put just-some-data.txt
+
+# if you use show collections you can see fs.files and fs.chunks
+show collections
+# cities fs.chunks fs.files
+
+# these filesystems can be queried and replicated as well.
+db.fs.files.find()[0].filename
+# just-some-data.txt
+```
+
+### Homework
+```js
+// Homework 1
+var londonCenter = db.cities.findOne( {name: "London", country: "GB"} ).location
+londonCenter = [londonCenter.longitude, londonCenter.latitude]
+
+// convert the radius from miles to radians
+var radiusInMiles = 50;
+var radiusInRadians = radiusInMiles / 3963.2;
+
+// query
+var citiesWithinRadius = db.cities.find({  
+    location: {  
+        $geoWithin: {  
+            $centerSphere: [londonCenter, radiusInRadians]  
+        }  
+    }  
+});
+
+citiesWithinRadius.count()
+// 297
+
+// to print all
+citiesWithinRadius.toArray()
+
+// print result
+citiesWithinRadius.forEach(city => printjson(city));
+
+// Homework 2
+
+// Create the GridFS Buckets
+use myGridFSDB
+db.createCollection("fs.files")
+db.createCollection("fs.chunks")
+
+// enable sharding
+sh.enableSharding("myGridFSDB")
+sh.shardCollection("myGridFSDB.fs.chunks", { _id: 1 })
+
+// adding file is same as before. it will be added to all shards.
+```
