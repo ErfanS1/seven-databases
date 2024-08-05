@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  couch_7db:
+    image: couchdb:3.3.3
+    container_name: couch_7db
+    environment:
+      COUCHDB_USER: erf
+      COUCHDB_PASSWORD: 123
+    ports:
+      - '5984:5984'
