@@ -97,3 +97,71 @@ curl -XPUT \                         "${COUCH_ROOT_URL}/music/25a4387846eb1ba6c3
 # retrieve the file, using filename in url
 curl "${COUCH_ROOT_URL}/music/25a4387846eb1ba6c390faed6f011d07/attachment.txt" -u erf:123
 ```
+
+### Day 2
+```bash
+# to get all docs
+curl "${COUCH_ROOT_URL}/music/_all_docs" -u erf:123
+# it will output a json which includes an array of rows, consist of id, key, value. which in this query id and key match and value is {rev}
+
+# but in general, 
+# • id is the document’s _id.
+# • key is the JSON key produced by the mapreduce functions. 
+# • value is the associated JSON value, also produced through mapreduce.
+
+# to see the docs as well
+curl "${COUCH_ROOT_URL}/music/_all_docs?include_docs=true" -u erf:123
+
+# to create a view
+# click on + sign of Design Documents, then click on New View
+# for every view there is a function that emits key value simillar to Mongo map, that map docs to key values
+# this function is simillar to _all_docs function
+function(doc) {
+  emit(doc._id, { rev: doc._rev });
+}
+
+# function for artists to query by name, DesignDoc=artists, view_name=by_name
+function(doc) {
+  if ('name' in doc) {
+    emit(doc.name, doc._id);
+  }
+}
+
+# function for albums, its not one to one like the ones above. DesignDoc=albums, view_name=by_name
+function(doc) {
+  if ('name' in doc && 'albums' in doc) {
+    doc.albums.forEach(function(album){
+      var
+        key = album.title || album.name,
+        value = { by: doc.name, album: album };
+      emit(key, value);
+    });
+  }
+}
+curl "${COUCH_ROOT_URL}/music/_design/albums/_view/by_name" -u erf:123
+# result is something like this except it had more rows.
+{  
+  "total_rows": 1,  
+  "offset": 0,  
+  "rows": [{  
+      "id": "25a4387846eb1ba6c390faed6f0005e4",  
+      "key": "Abbey Road",  
+      "value": {  
+        "by": "The Beatles",  
+        "album": {  
+          "title": "Abbey Road",  
+          "year": 1969  
+        }  
+      }  
+    }]  
+}
+
+# to query a view path is like {db_name}/_design/{design_doc}/_view/{view_name}
+
+# Tip: CouchDB will ensure that the records are presented in alphanumerical order by the emitted keys. In effect, this is the indexing that CouchDB offers. When designing your views, it’s important to pick emitted keys that will make sense when ordered
+
+# what if you want to query a subset not the whole view?
+# in my terminal zsh I had to skip characters of `!` and `"`
+curl "${COUCH_ROOT_URL}/music/_design/albums/_view/by_name?key=\"Help\!\"" -u erf:123
+# "total_rows": 6,  "offset": 2, total rows is for the whole view, offset is where was the first returned value
+```
