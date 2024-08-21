@@ -163,3 +163,51 @@ MATCH (nineties:Movie) WHERE nineties.released >= 1990 AND nineties.released < 2
 
 // Do. 1 create some nodes and relationships! easy
 ```
+
+### Day 2
+
+### REST interface
+```bash
+curl http://localhost:7474/
+{"bolt_routing":"neo4j://localhost:7687","transaction":"http://localhost:7474/db/{databaseName}/tx","bolt_direct":"bolt://localhost:7687","neo4j_version":"5.22.0","neo4j_edition":"community"}
+
+# create a node, API in book for creating node is deprecated
+curl -i -X POST http://localhost:7474/db/neo4j/tx/commit \
+-H "Content-Type: application/json" \
+-d '{ "statements" : [ { "statement" : "CREATE (n:Author {name: $name, genre: $genre}) RETURN n", "parameters" : { "name": "P.G. Wodehouse", "genre": "British Humour" } } ] }'
+# {"results":[{"columns":["n"],"data":[{"row":[{"genre":"British Humour","name":"P.G. Wodehouse"}],"meta":[{"id":182,"elementId":"4:e66b4524-0f12-4d86-97bd-cdd415ec2bfe:182","type":"node","deleted":false}]}]}],"errors":[],"lastBookmarks":["FB:kcwQ5mtFJA8STYaXvc3UFewr/keQ"]}
+
+
+# how to get it
+match(n:Author) return n
+curl -X POST http://localhost:7474/db/neo4j/tx/commit \
+-H "content-type: application/json" \
+-d '{
+	"statements": [{"statement": "match(n:Author) return n"}]
+}'
+# {"results":[{"columns":["n"],"data":[{"row":[{"genre":"British Humour","name":"P.G. Wodehouse"}],"meta":[{"id":182,"elementId":"4:e66b4524-0f12-4d86-97bd-cdd415ec2bfe:182","type":"node","deleted":false}]}]}],"errors":[],"lastBookmarks":["FB:kcwQ5mtFJA8STYaXvc3UFewr/keQ"]}
+
+# this is the url in new versions of neo4j for cypher HTTP API http://localhost:7474/db/neo4j/tx/commit
+
+# how to get only properties of nodes? use this inside query
+return properties(n)
+
+# Create NODE
+curl -X POST http://localhost:7474/db/neo4j/tx/commit \ -H "Content-Type: application/json" \ -d '{ "statements": [ { "statement": "CREATE (a:Author {name: $name}), (b:Book {title: $title}) RETURN a, b", "parameters": { "name": "P.G. Wodehouse", "title": "Jeeves and Wooster" } } ] }'
+
+# Create a Relationship
+curl -X POST http://localhost:7474/db/neo4j/tx/commit \ -H "Content-Type: application/json" \ -d '{ "statements": [ { "statement": "MATCH (a:Author {name: $name}), (b:Book {title: $title}) CREATE (a)-[:WROTE]->(b) RETURN a, b", "parameters": { "name": "P.G. Wodehouse", "title": "Jeeves and Wooster" } } ] }'
+
+# using id in query returns result + a warning about it being deprecated, so it says use elementId instead
+curl -X POST http://localhost:7474/db/neo4j/tx/commit \  
+-H "Content-Type: application/json" \  
+-d '{ "statements": [ { "statement": "MATCH (a:Author) WHERE elementId(a)=\"4:e66b4524-0f12-4d86-97bd-cdd415ec2bfe:182\" RETURN a"} ] }'
+
+
+# how to find shortest path between two nodes?
+curl -X POST http://localhost:7474/db/neo4j/tx/commit \ 
+-H "Content-Type: application/json" \ 
+-d '{ "statements": [ { "statement": " MATCH (a:Author {name: $authorName}), (b:Book {title: $bookTitle}), p = shortestPath((a)-[*]-(b)) RETURN p", "parameters": { "authorName": "Author A", "bookTitle": "Book B" } } ] }'
+
+# The other path algorithm choices are allPaths, allSimplePaths, and dijkstra. You can find information on these algorithms in the online documentation. https://neo4j.com/blog/graph-search-algorithm-basics/
+```
