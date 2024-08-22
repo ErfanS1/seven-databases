@@ -13,4 +13,4 @@ curl -X POST http://localhost:7474/db/neo4j/tx/commit \
 # find shortestPath below some range
 curl -X POST http://localhost:7474/db/neo4j/tx/commit \
 -H "Content-Type: application/json" \
--d '{ "statements": [ { "statement": "MATCH (p:Person {name: \"Kofi\"}), (g:GrapeType {name: \"Riesling\"}), s = shortestPath((p)-[*..$maxDepth]-(g)) RETURN s", "parameters": {"maxDepth": 5} } ] }'
+-d '{ "statements": [ { "statement": "MATCH (p:Person {name: \"Kofi\"}), (g:GrapeType {name: \"Riesling\"}), s = shortestPath((p)-[*..5]-(g)) RETURN s" } ] }'
