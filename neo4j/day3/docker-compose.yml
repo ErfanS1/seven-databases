@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  neo4j-leader:
+    image: 5.23.0-enterprise
+    container_name: neo4j-leader
+    environment:
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_dbms_default__advertised__address=neo4j-leader
+      - NEO4J_dbms_default__listen__address=0.0.0.0
+      - NEO4J_dbms_cluster_topology__members=neo4j-leader:5000,neo4j-follower1:5000,neo4j-follower2:5000
+      # Removed: NEO4J_dbms_cluster_core__count
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j-leader-data:/data
+
+  neo4j-follower1:
+    image: 5.23.0-enterprise
+    container_name: neo4j-follower1
+    environment:
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_dbms_default__advertised__address=neo4j-follower1
+      - NEO4J_dbms_default__listen__address=0.0.0.0
+      - NEO4J_dbms_cluster_topology__members=neo4j-leader:5000,neo4j-follower1:5000,neo4j-follower2:5000
+    ports:
+      - "7475:7474"
+      - "7688:7687"
+    volumes:
+      - neo4j-follower1-data:/data
+
+  neo4j-follower2:
+    image: 5.23.0-enterprise
+    container_name: neo4j-follower2
+    environment:
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_dbms_default__advertised__address=neo4j-follower2
+      - NEO4J_dbms_default__listen__address=0.0.0.0
+      - NEO4J_dbms_cluster_topology__members=neo4j-leader:5000,neo4j-follower1:5000,neo4j-follower2:5000
+    ports:
+      - "7476:7474"
+      - "7689:7687"
+    volumes:
+      - neo4j-follower2-data:/data
+
+volumes:
+  neo4j-leader-data:
+  neo4j-follower1-data:
+  neo4j-follower2-data:

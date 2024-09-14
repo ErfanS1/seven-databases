@@ -14,3 +14,27 @@ curl -X POST http://localhost:7474/db/neo4j/tx/commit \
 curl -X POST http://localhost:7474/db/neo4j/tx/commit \
 -H "Content-Type: application/json" \
 -d '{ "statements": [ { "statement": "MATCH (p:Person {name: \"Kofi\"}), (g:GrapeType {name: \"Riesling\"}), s = shortestPath((p)-[*..5]-(g)) RETURN s" } ] }'
+
+
+# add schema index
+curl -X POST http://localhost:7474/db/neo4j/tx/commit \
+-H "Content-Type: application/json" \
+-d '{
+      "statements": [
+        {
+          "statement": "CREATE INDEX FOR (a:Author) ON (a.name)"
+        }
+      ]
+    }'
+
+
+## to get all relations
+curl -X POST http://localhost:7474/db/neo4j/tx/commit \
+-H "Content-Type: application/json" \
+-d '{
+  "statements": [
+    {
+      "statement": "MATCH ()-[r]-() RETURN r;"
+    }
+  ]
+}'
