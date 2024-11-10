@@ -1,13 +1,13 @@
 
-```psql
+```sql
 create database book;
-# to list DBs
+-- to list DBs
 \list
 
-# to get help, shows all commands.
+-- to get help, shows all commands.
 \h
 
-# to get details of a command
+-- to get details of a command
 \h create index
 
 CREATE TABLE countries ( country_code char(2) PRIMARY KEY, country_name text UNIQUE );
@@ -15,7 +15,7 @@ CREATE TABLE countries ( country_code char(2) PRIMARY KEY, country_name text UNI
 CREATE TABLE cities ( name text NOT NULL, postal_code varchar(9) CHECK (postal_code <> ''), country_code char(2) REFERENCES countries, PRIMARY KEY (country_code, postal_code) );
 
 
-# here as you see you can reference two values!
+-- here as you see you can reference two values!
 CREATE TABLE venues (
 	venue_id SERIAL PRIMARY KEY,
 	name varchar(255), street_address text,
@@ -25,7 +25,7 @@ CREATE TABLE venues (
 );
 
 
-# create table events
+-- create table events
 create table events (
  event_id serial primary key,
  title varchar(20),
@@ -35,15 +35,15 @@ create table events (
 );
 
 
-# you can insert and tell postgre to return the id or any other field
+-- you can insert and tell postgre to return the id or any other field
 INSERT INTO venues (name, postal_code, country_code)
 VALUES ('Voodoo Donuts', '97205', 'us') RETURNING venue_id;
 
-# talks about left join(left outer join) and join(inner join), right join and full join which is left join union right join.
+-- talks about left join(left outer join) and join(inner join), right join and full join which is left join union right join.
 SELECT e.title, v.name FROM events e LEFT JOIN venues v ON e.venue_id = v.venue_id;
 
 
-# talks about index
+-- talks about index
 CREATE INDEX events_title ON events USING hash (title);
 
 CREATE INDEX events_starts ON events USING btree (starts);
@@ -51,11 +51,11 @@ CREATE INDEX events_starts ON events USING btree (starts);
 \di to get all indexes
 \di+ with size and desc
 
-# if you use foreign key, postgres will use indexes on targeted columns.
+-- if you use foreign key, postgres will use indexes on targeted columns.
 
-# select * from pg_class; this has some details about tables;
+select * from pg_class; -- this has some details about tables;
 
-# you can have sub query in inserts as well !
+-- you can have sub query in inserts as well !
 
 AGGREGATE functoins
 min, max
@@ -68,22 +68,22 @@ WHERE venues.name = 'Crystal Ballroom';
 GROUPING
 
 SELECT venue_id, count(*) FROM events GROUP BY venue_id;
-# HAVING is like the WHERE clause from GROUP BY except it can filter by aggregate functions (whereas WHERE cannot).
+-- HAVING is like the WHERE clause from GROUP BY except it can filter by aggregate functions (whereas WHERE cannot).
 
-# SELECT DISTINCT venue_id FROM events; equals SELECT venue_id FROM events GROUP BY venue_id;
+SELECT DISTINCT venue_id FROM events; equals SELECT venue_id FROM events GROUP BY venue_id;
 
-#MYSQL: If you tried to run a SELECT with columns not defined under a GROUP BY in MySQL, you may be shocked to see that it works.
+-- MYSQL: If you tried to run a SELECT with columns not defined under a GROUP BY in MySQL, you may be shocked to see that it works.
 ```
 # Window Functions
-```
-# (PostgreSQL is one of the few open source databases to implement them)
-# if you need a column which is not in the group by columns ! you need to partition them
+```sql
+-- (PostgreSQL is one of the few open source databases to implement them)
+-- if you need a column which is not in the group by columns ! you need to partition them
 SELECT title, count(*) OVER (PARTITION BY venue_id) FROM events;
 
 ```
 # Transactions
-```
-transactions follow ACID compliance, which stands for Atomic (all ops succeed or none do), Consistent (the data will always be in a good state—no inconsistent states), Isolated (transactions don’t interfere), and Durable (a committed transaction is safe, even after a server crash).
+```sql
+-- transactions follow ACID compliance, which stands for Atomic (all ops succeed or none do), Consistent (the data will always be in a good state—no inconsistent states), Isolated (transactions don’t interfere), and Durable (a committed transaction is safe, even after a server crash).
 
 BEGIN TRANSACTION;
 	DELETE FROM events;
@@ -96,7 +96,7 @@ BEGIN TRANSACTION;
 END;
 ```
 # Procedures
-```bash
+```sql
 CREATE OR REPLACE FUNCTION add_event( title text, starts timestamp,
 ends timestamp, venue text, postal varchar(9), country char(2) )
 RETURNS boolean AS $$
@@ -123,16 +123,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-# you can import external file like this
+-- you can import external file like this
 \i add_event.sql 
 
-# how to use it ?
+-- how to use it ?
 SELECT add_event('House Party', '2012-05-03 23:00', '2012-05-04 02:00', 'Run''s House', '97205', 'us');
 
-# to list all the progamming languanges.
+-- to list all the progamming languanges.
 createlang book --list # removed from version 10. this was in the book
 
-# the new commands are `CREATE EXTENSION` and `DROP EXTENSION`
+-- the new commands are `CREATE EXTENSION` and `DROP EXTENSION`
 
 
 CREATE OR REPLACE FUNCTION log_event() RETURNS trigger AS $$
@@ -146,24 +146,24 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-# create trigger like this
+-- create trigger like this
 CREATE TRIGGER log_events
 	AFTER UPDATE ON events
 	FOR EACH ROW EXECUTE PROCEDURE log_event();
 
-# Triggers can also be created before updates and before or after inserts.
+-- Triggers can also be created before updates and before or after inserts.
 ```
 
 # Views
-```bash
+```sql
 CREATE VIEW holidays AS
 	SELECT event_id AS holiday_id, title AS name, starts AS date
 	FROM events 
 	WHERE title LIKE '%Day%' AND venue_id IS NULL;
 
-# you can query it like a normal table
+-- you can query it like a normal table
 
-# you can update the views like this
+-- you can update the views like this
 CREATE OR REPLACE VIEW holidays AS
 	SELECT event_id AS holiday_id, title AS name, starts AS date, colors
 	FROM events 
@@ -174,7 +174,7 @@ UPDATE holidays SET colors = '{"red","green"}' where name = 'Christmas Day'; ERR
 
 EXPLAIN VERBOSE SELECT * FROM holidays;
 
-# set rules for update in views
+-- set rules for update in views
 CREATE RULE update_holidays AS ON UPDATE TO holidays DO INSTEAD
 	UPDATE events 
 	SET title = NEW.name,
@@ -182,12 +182,12 @@ CREATE RULE update_holidays AS ON UPDATE TO holidays DO INSTEAD
 		colors = NEW.colors 
 	WHERE title = OLD.name;
 
-# we can also have rules for insert in views and deletes 
+-- we can also have rules for insert in views and deletes 
 
 ```
 
 # cross tab
-```bash
+```sql
 SELECT extract(year from starts) as year, 
 	extract(month from starts) as month, count(*)
 	FROM events 
@@ -203,15 +203,15 @@ SELECT * FROM crosstab(
 		'SELECT * FROM month_count'
 ) AS ( year int, jan int, feb int, mar int, apr int, may int, jun int, jul int, aug int, sep int, oct int, nov int, dec int ) ORDER BY YEAR;
 
-# this query didnt work the solution is to first run this.
+-- this query didnt work the solution is to first run this.
 CREATE EXTENSION IF NOT EXISTS tablefunc;
-# This ensures the `tablefunc` extension, which includes the `crosstab` function, is enabled.
+-- This ensures the `tablefunc` extension, which includes the `crosstab` function, is enabled.
 
 ```
 
 # Full-Text and Multidimensions
-```bash
-# to active cube
+```sql
+-- to active cube
 CREATE EXTENSION IF NOT EXISTS cube;
 
 CREATE TABLE genres ( name text UNIQUE, position integer );
@@ -228,58 +228,58 @@ CREATE INDEX movies_genres_cube ON movies USING gist (genre);
 
 SELECT title FROM movies WHERE title ILIKE 'stardust%';
 
-# LIKE and ILIKE(its case insensitive of like)
-# _ means exactly one character, % means any numbers of characters
+-- LIKE and ILIKE(its case insensitive of like)
+-- _ means exactly one character, % means any numbers of characters
 
 SELECT title FROM movies WHERE title ILIKE 'stardust_%';
 
-# you can use regular expressions POSIX in psql
+-- you can use regular expressions POSIX in psql
 SELECT COUNT(*) FROM movies WHERE title !~* '^the.*';
 
 CREATE INDEX movies_title_pattern ON movies (lower(title) text_pattern_ops);
 
 
-# to use next command
+-- to use next command
 CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
 
-# this returns distance of 2 words ! :))
+-- this returns distance of 2 words ! :))
 SELECT levenshtein('bat', 'fads');
 
-# Nice query
+-- Nice query
 SELECT movie_id, title FROM movies 
 	WHERE levenshtein(lower(title), lower('a hard day nght')) <= 3;
-# This ensures minor differences won’t over-inflate the distance.
+-- This ensures minor differences won’t over-inflate the distance.
 
 
-# use this for next command
+-- use this for next command
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE INDEX movies_title_trigram ON movies USING gist (title gist_trgm_ops);
 
 SELECT * FROM movies WHERE title % 'Avatre';
 
-# TSVector and TSQuery
+-- TSVector and TSQuery
 SELECT title FROM movies WHERE title @@ 'night & day';
 
 SELECT title FROM movies WHERE to_tsvector(title) @@ to_tsquery('english', 'night & day');
 
 SELECT to_tsvector('simple', 'A Hard Day''s Night');
 
-# to check languages psql supports for nlp
+-- to check languages psql supports for nlp
 \dF 
 \dFd
 
-# to see how many words are in the dictionary
+-- to see how many words are in the dictionary
 SELECT ts_lexize('english_stem', 'Day''s');
 
-# to create inverted idnex (gin)
+-- to create inverted idnex (gin)
 CREATE INDEX movies_title_searchable ON movies USING gin(to_tsvector('english', title));
 
-# we need to specify english since its in our index.
+-- we need to specify english since its in our index.
 EXPLAIN SELECT * FROM movies
 	WHERE to_tsvector('english',title) @@ 'night & day';
 
-# metaphone for the sound be almost equal
+-- metaphone for the sound be almost equal
 SELECT title FROM movies NATURAL JOIN movies_actors NATURAL JOIN actors WHERE metaphone(name, 6) = metaphone('Broos Wils', 6);
 
 ```
